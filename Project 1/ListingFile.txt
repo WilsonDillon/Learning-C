@@ -1,0 +1,38 @@
+1  program example(input, output);
+2  var x, y: integer;
+3  begin
+4    if b = 0 then gcd := a
+5    else gcd := gcd(b, a mod b)
+6  end;
+7  var x := 0123456.1234560E+0123; 
+LEXERR: Extra Long Whole Part: 0123456.1234560E+0123
+LEXERR: Leading 0 in Whole Part: 0123456.1234560E+0123
+LEXERR: Extra Long Fractional Part: 0123456.1234560E+0123
+LEXERR: Trailing 0 in Fractional Part: 0123456.1234560E+0123
+LEXERR: Extra Long Exponential Part: 0123456.1234560E+0123
+LEXERR: Leading 0 in Exponential Part: 0123456.1234560E+0123
+8  var x := 0123456.1234560;
+LEXERR: Extra Long Whole Part: 0123456.1234560
+LEXERR: Leading 0 in Whole Part: 0123456.1234560
+LEXERR: Extra Long Fractional Part: 0123456.1234560
+LEXERR: Trailing 0 in Fractional Part: 0123456.1234560
+9  var x := 012345678910;
+10  <> <
+11  <=
+12  >
+13  >=
+14  =
+15  <
+16  begin
+17    read(x, y);
+18    write(gcd(x, y)) 
+19  end.
+20  thisisanIDthatistoolon
+LEXERR: Extra Long ID: thisisanIDthatistoolon
+21  
+22  1a23ds5
+LEXERR: Unrecognized Symbol: 1a23ds5
+23  a23d45f
+24  
+25  ...@1symbol11334
+LEXERR: Unrecognized Symbol: @1symbol11334
