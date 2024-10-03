@@ -17,7 +17,7 @@ begin
   read(x, y);
   write(gcd(x, y)) 
 end.
-thisisanIDthatistoolon
+thisisanIDthatistoolong
 
 1a23ds5
 a23d45f
