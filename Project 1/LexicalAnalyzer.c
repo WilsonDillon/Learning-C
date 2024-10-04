@@ -30,6 +30,11 @@ void printTok(int lineNo, char *lexeme, char *tokName, int tokInt, char *attrNam
   fprintf(tokenFile, "%d %s %s %d %s %d\n", lineNo, lexeme, tokName, tokInt, attrName, attrInt);
 }
 
+void printTokUnion(int lineNo, char *lexeme, char *tokName, int tokInt, char *attrName, union Attr attr)
+{
+  fprintf(tokenFile, "%d %s %s %d %s %p\n", lineNo, lexeme, tokName, tokInt, attrName, attr.symPtr);
+}
+
 int checkResWord(char *lexeme)
 {
   // printf("Lex: %s\n", lexeme);
@@ -79,15 +84,23 @@ int idRes(char *str)
     // printf("IDRES: %s\n", lex);
     if (checkResWord(lex) == 1)
     {
-      printTok(lineNum, lex, "ID", 53, "NIL", 44);
+      union Attr attr;
+      char *symbol = malloc(strlen(lex) + 1);
+      strncpy(symbol, lex, strlen(lex));
+      symbol[strlen(lex)] = '\0';
+      attr.symPtr = (void *)symbol;
+
       if (isInList(&symTable, lex) == 1)
       {
-        union Attr attr;
-        char *symbol = malloc(strlen(lex) + 1);
-        strncpy(symbol, lex, strlen(lex));
-        symbol[strlen(lex)] = '\0';
-        attr.symPtr = (void *)symbol;
         append(&symTable, lineNum, lex, "ID", 53, "NIL", attr);
+        printTokUnion(lineNum, lex, "ID", 53, "NIL", attr);
+      }
+      else
+      {
+        struct Node *symNode = search(&symTable, symbol);
+        // printf("Node found: %s\n", symNode->lex);
+        printTokUnion(lineNum, lex, "ID", 53, "NIL", symNode->attr);
+        free(symbol);
       }
     }
     if (strlen(lex) > 10)

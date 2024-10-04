@@ -108,10 +108,12 @@ void clear(struct Node **head)
 struct Node *search(struct Node **head, char *lex)
 {
   struct Node *curr = *head;
+  // printf("Searching for %s...\n", lex);
   while (curr != NULL)
   {
     if (strcmp(curr->lex, lex) == 0)
     {
+      // printf("here\n");
       return curr;
     }
     curr = curr->next;

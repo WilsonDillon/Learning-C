@@ -1,6 +1,6 @@
 #include "LinkedList.h"
 
-struct Node *createNode(int lineNum, char *lex, char *tokStr, int tokInt, char *attrStr, int attrInt)
+struct Node *createNode(int lineNum, char *lex, char *tokStr, int tokInt, char *attrStr, union Attr attr)
 {
   struct Node *newNode = (struct Node *)malloc(sizeof(struct Node));
   newNode->lineNum = lineNum;
@@ -8,14 +8,14 @@ struct Node *createNode(int lineNum, char *lex, char *tokStr, int tokInt, char *
   strncpy(newNode->tokStr, tokStr, 9);
   newNode->tokInt = tokInt;
   strncpy(newNode->attrStr, attrStr, 9);
-  newNode->attrInt = attrInt;
+  newNode->attr = attr;
   newNode->next = NULL;
   return newNode;
 }
 
-void append(struct Node **head, int lineNum, char *lex, char *tokStr, int tokInt, char *attrStr, int attrInt)
+void append(struct Node **head, int lineNum, char *lex, char *tokStr, int tokInt, char *attrStr, union Attr attr)
 {
-  struct Node *newNode = createNode(lineNum, lex, tokStr, tokInt, attrStr, attrInt);
+  struct Node *newNode = createNode(lineNum, lex, tokStr, tokInt, attrStr, attr);
   if (*head == NULL)
   {
     *head = newNode;
@@ -29,9 +29,9 @@ void append(struct Node **head, int lineNum, char *lex, char *tokStr, int tokInt
   curr->next = newNode;
 }
 
-void insert(struct Node **head, int idx, int lineNum, char *lex, char *tokStr, int tokInt, char *attrStr, int attrInt)
+void insert(struct Node **head, int idx, int lineNum, char *lex, char *tokStr, int tokInt, char *attrStr, union Attr attr)
 {
-  struct Node *newNode = createNode(lineNum, lex, tokStr, tokInt, attrStr, attrInt);
+  struct Node *newNode = createNode(lineNum, lex, tokStr, tokInt, attrStr, attr);
   if (idx < 0)
   {
     printf("Invalid Index: %d\n", idx);
@@ -92,6 +92,13 @@ void clear(struct Node **head)
   while (curr != NULL)
   {
     struct Node *nextNode = curr->next;
+
+    if (curr->attr.symPtr != NULL)
+    {
+      free(curr->attr.symPtr);
+      curr->attr.symPtr = NULL;
+    }
+
     free(curr);
     curr = nextNode;
   }
@@ -101,10 +108,12 @@ void clear(struct Node **head)
 struct Node *search(struct Node **head, char *lex)
 {
   struct Node *curr = *head;
+  // printf("Searching for %s...\n", lex);
   while (curr != NULL)
   {
     if (strcmp(curr->lex, lex) == 0)
     {
+      // printf("here\n");
       return curr;
     }
     curr = curr->next;
@@ -113,9 +122,10 @@ struct Node *search(struct Node **head, char *lex)
   return NULL;
 }
 
-int isInList(struct Node **head, char *lex) {
-    struct Node *foundNode = search(head, lex);
-    return (foundNode != NULL) ? 0 : 1;
+int isInList(struct Node **head, char *lex)
+{
+  struct Node *foundNode = search(head, lex);
+  return (foundNode != NULL) ? 0 : 1;
 }
 
 void printList(struct Node *head)
@@ -124,7 +134,7 @@ void printList(struct Node *head)
   printf("Symbol Table (Linked List): \n");
   while (curr != NULL)
   {
-    printf("%d %s %s %d %s %d -> \n", curr->lineNum, curr->lex, curr->tokStr, curr->tokInt, curr->attrStr, curr->attrInt);
+    printf("%d %s %s %d %s %p ->\n", curr->lineNum, curr->lex, curr->tokStr, curr->tokInt, curr->attrStr, curr->attr.symPtr);
     curr = curr->next;
   }
   printf("END\n");
