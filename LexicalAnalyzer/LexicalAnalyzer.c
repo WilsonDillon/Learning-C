@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include "LinkedList.h"
 
 #define MAX_LINE_LENGTH 72
 
@@ -22,6 +23,7 @@ int f = 0;
 int b = 0;
 int lineNum = 0;
 struct ResWord resWordArr[20];
+struct Node *symTable = NULL;
 
 void printTok(int lineNo, char *lexeme, char *tokName, int tokInt, char *attrName, int attrInt)
 {
@@ -78,6 +80,10 @@ int idRes(char *str)
     if (checkResWord(lex) == 1)
     {
       printTok(lineNum, lex, "ID", 53, "NIL", 44);
+      if (isInList(&symTable, lex) == 1)
+      {
+        append(&symTable, lineNum, lex, "ID", 53, "NIL", 44);
+      }
     }
     if (strlen(lex) > 10)
     {
@@ -537,6 +543,12 @@ int main()
     }
   }
 
+  printTok(lineNum, "EOF", "EOF", 58, "NIL", 44);
+  printList(symTable);
+  clear(&symTable);
   fclose(file);
+  fclose(ResWordFile);
+  fclose(tokenFile);
+  fclose(listingFile);
   return 0;
 }

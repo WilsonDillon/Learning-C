@@ -45,3 +45,4 @@
 #define ADDOP 55
 #define MULOP 56
 #define COLON 57
+#define EOF 58
