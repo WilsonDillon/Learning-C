@@ -82,7 +82,12 @@ int idRes(char *str)
       printTok(lineNum, lex, "ID", 53, "NIL", 44);
       if (isInList(&symTable, lex) == 1)
       {
-        append(&symTable, lineNum, lex, "ID", 53, "NIL", 44);
+        union Attr attr;
+        char *symbol = malloc(strlen(lex) + 1);
+        strncpy(symbol, lex, strlen(lex));
+        symbol[strlen(lex)] = '\0';
+        attr.symPtr = (void *)symbol;
+        append(&symTable, lineNum, lex, "ID", 53, "NIL", attr);
       }
     }
     if (strlen(lex) > 10)
