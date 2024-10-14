@@ -17,6 +17,8 @@ LEXERR: Leading 0 in Whole Part: 0123456.1234560
 LEXERR: Extra Long Fractional Part: 0123456.1234560
 LEXERR: Trailing 0 in Fractional Part: 0123456.1234560
 9  var x := 012345678910;
+LEXERR: Extra Long Integer: 012345678910
+LEXERR: Leading 0 on Integer: 012345678910
 10  <> <
 11  <=
 12  >
@@ -31,8 +33,8 @@ LEXERR: Trailing 0 in Fractional Part: 0123456.1234560
 LEXERR: Extra Long ID: thisisanIDthatistoolong
 21  
 22  1a23ds5
-LEXERR: Unrecognized Symbol: 1a23ds5
 23  a23d45f
 24  
 25  ...@1symbol11334
-LEXERR: Unrecognized Symbol: @1symbol11334
+LEXERR: Unrecognized Symbol: @
+LEXERR: Extra Long ID: symbol11334

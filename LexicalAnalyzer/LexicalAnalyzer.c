@@ -53,11 +53,14 @@ int checkResWord(char *lexeme)
 
 int whitespace(char *str)
 {
-  while (str[f] == '\n' || str[f] == '\t' || str[f] == ' ')
+  // printf("whitespace");
+  if (str[f] == '\n' || str[f] == '\t' || str[f] == ' ')
   {
     f++;
+    return 0;
   }
-  return 1;
+  else
+    return 1;
 }
 
 int idRes(char *str)
@@ -234,10 +237,11 @@ int longReal(char *str)
   char lex3[MAX_LINE_LENGTH] = {0}; // Store digits after 'E' (exponent part)
 
   memset(lex, 0, sizeof(lex));
-
+  // printf("Try LongReal: %c\n", str[f]);
   // Step 1: Read digits before the decimal point (store in lex1)
   if (isdigit(str[f]))
   {
+    // printf("\t%c is a digit\n", str[f]);
     while (isdigit(str[f]))
     {
       tmp[0] = str[f];
@@ -253,108 +257,67 @@ int longReal(char *str)
       strcat(lex, tmp);
       f++;
 
-      // Step 3: Read digits after the decimal point
-      while (isdigit(str[f]))
+      if (isdigit(str[f]))
       {
-        tmp[0] = str[f];
-        strcat(lex, tmp);
-        strcat(lex2, tmp);
-        f++;
-      }
-
-      // Step 4: Look for 'E' to handle the exponent part (store in lex3)
-      if (str[f] == 'E')
-      {
-        tmp[0] = str[f];
-        strcat(lex, tmp);
-        f++;
-
-        // Optional: Check for '+' or '-' sign in the exponent
-        if (str[f] == '+' || str[f] == '-')
-        {
-          tmp[0] = str[f];
-          strcat(lex, tmp);
-          f++;
-        }
-
-        // Step 5: Read digits after 'E' (exponent part, store in lex3)
+        // Step 3: Read digits after the decimal point
         while (isdigit(str[f]))
         {
           tmp[0] = str[f];
           strcat(lex, tmp);
-          strcat(lex3, tmp);
+          strcat(lex2, tmp);
           f++;
+        }
+
+        // Step 4: Look for 'E' to handle the exponent part (store in lex3)
+        if (str[f] == 'E')
+        {
+          tmp[0] = str[f];
+          strcat(lex, tmp);
+          f++;
+
+          // Optional: Check for '+' or '-' sign in the exponent
+          if (str[f] == '+' || str[f] == '-')
+          {
+            tmp[0] = str[f];
+            strcat(lex, tmp);
+            f++;
+          }
+
+          // Step 5: Read digits after 'E' (exponent part, store in lex3)
+          if (isdigit(str[f]))
+          {
+            while (isdigit(str[f]))
+            {
+              tmp[0] = str[f];
+              strcat(lex, tmp);
+              strcat(lex3, tmp);
+              f++;
+            }
+          }
+          else
+          {
+            f = b;
+            return 1;
+          }
+        }
+        else
+        {
+          f = b;
+          return 1;
         }
       }
       else
       {
-        // Could be a real
-        // printf("REAL: %s\n", lex);
-        printTok(lineNum, lex, "NUM", 16, "REAL", 19);
-        if (strlen(lex1) > 5)
-        {
-          fprintf(listingFile, "LEXERR: Extra Long Whole Part: %s\n", lex);
-          printTok(lineNum, lex, "LEXERR", 99, "Extra Long Whole Part", 99);
-        }
-        if (strlen(lex1) > 0 && lex1[0] == '0')
-        {
-          fprintf(listingFile, "LEXERR: Leading 0 in Whole Part: %s\n", lex);
-          printTok(lineNum, lex, "LEXERR", 99, "Leading 0 in Whole Part", 99);
-        }
-        if (strlen(lex2) > 5)
-        {
-          fprintf(listingFile, "LEXERR: Extra Long Fractional Part: %s\n", lex);
-          printTok(lineNum, lex, "LEXERR", 99, "Extra Long Fractional Part", 99);
-        }
-        if (strlen(lex2) > 0 && lex2[strlen(lex2) - 1] == '0')
-        {
-          fprintf(listingFile, "LEXERR: Trailing 0 in Fractional Part: %s\n", lex);
-          printTok(lineNum, lex, "LEXERR", 99, "Trailing 0 in Fractional Part", 99);
-        }
-        return 0;
+        f = b;
+        return 1;
       }
     }
     else
     {
-      // Check for malformed ids that begin with digits
-      if (str[f] != ' ')
-      {
-        int alpha = 0;
-        while (!isspace(str[f]))
-        {
-          if (isalpha(str[f]))
-          {
-            alpha = 1;
-          }
-          tmp[0] = str[f];
-          strcat(lex, tmp);
-          f++;
-        }
-        if (alpha == 1)
-        {
-          fprintf(listingFile, "LEXERR: Unrecognized Symbol: %s\n", lex);
-          printTok(lineNum, lex, "LEXERR", 99, "Unrecognized Symbol", 99);
-        }
-      }
-      // Could be an int
-      else
-      {
-        // printf("INT: %s\n", lex);
-        printTok(lineNum, lex, "NUM", 16, "INT", 18);
-        if (strlen(lex) > 10)
-        {
-          fprintf(listingFile, "LEXERR: Extra Long Integer: %s\n", lex);
-          printTok(lineNum, lex, "LEXERR", 99, "Extra Long Int", 99);
-        }
-        if (strlen(lex) > 1 && lex[0] == '0')
-        {
-          fprintf(listingFile, "LEXERR: Leading 0 on Integer: %s\n", lex);
-          printTok(lineNum, lex, "LEXERR", 99, "Leading 0", 99);
-        }
-      }
-      return 0;
+      f = b;
+      return 1;
     }
-
+    // printf("here");
     // printf("LONGREAL: %s\n", lex);
     printTok(lineNum, lex, "NUM", 16, "REAL", 19);
 
@@ -399,11 +362,122 @@ int longReal(char *str)
 
     return 0;
   }
-
   return 1;
 }
 
-int relop(char *str) // HERE***
+int real(char *str)
+{
+  char tmp[2];
+  tmp[1] = '\0';
+
+  memset(lex, 0, sizeof(lex));
+
+  char lex1[MAX_LINE_LENGTH] = {0};
+  char lex2[MAX_LINE_LENGTH] = {0};
+
+  if (isdigit(str[f]))
+  {
+    while (isdigit(str[f]))
+    {
+      tmp[0] = str[f];
+      strcat(lex, tmp);
+      strcat(lex1, tmp);
+      f++;
+    }
+
+    if (str[f] == '.')
+    {
+      tmp[0] = str[f];
+      strcat(lex, tmp);
+      f++;
+
+      if (isdigit(str[f]))
+      {
+        // Step 3: Read digits after the decimal point
+        while (isdigit(str[f]))
+        {
+          tmp[0] = str[f];
+          strcat(lex, tmp);
+          strcat(lex2, tmp);
+          f++;
+        }
+
+        printTok(lineNum, lex, "NUM", 16, "REAL", 19);
+        if (strlen(lex1) > 5)
+        {
+          fprintf(listingFile, "LEXERR: Extra Long Whole Part: %s\n", lex);
+          printTok(lineNum, lex, "LEXERR", 99, "Extra Long Whole Part", 99);
+        }
+        if (strlen(lex1) > 0 && lex1[0] == '0')
+        {
+          fprintf(listingFile, "LEXERR: Leading 0 in Whole Part: %s\n", lex);
+          printTok(lineNum, lex, "LEXERR", 99, "Leading 0 in Whole Part", 99);
+        }
+        if (strlen(lex2) > 5)
+        {
+          fprintf(listingFile, "LEXERR: Extra Long Fractional Part: %s\n", lex);
+          printTok(lineNum, lex, "LEXERR", 99, "Extra Long Fractional Part", 99);
+        }
+        if (strlen(lex2) > 0 && lex2[strlen(lex2) - 1] == '0')
+        {
+          fprintf(listingFile, "LEXERR: Trailing 0 in Fractional Part: %s\n", lex);
+          printTok(lineNum, lex, "LEXERR", 99, "Trailing 0 in Fractional Part", 99);
+        }
+      }
+      else
+      {
+        f = b;
+        return 1;
+      }
+    }
+    else
+    {
+      f = b;
+      return 1;
+    }
+
+    return 0;
+  }
+  else
+    return 1;
+}
+
+int intMach(char *str)
+{
+  char tmp[2];
+  tmp[1] = '\0';
+
+  memset(lex, 0, sizeof(lex));
+  // printf("Try intMach: %c\n", str[f]);
+  if (isdigit(str[f]))
+  {
+    // printf("got here");
+    while (isdigit(str[f]) || str[f] == '0')
+    {
+      tmp[0] = str[f];
+      strcat(lex, tmp);
+      f++;
+    }
+
+    printTok(lineNum, lex, "NUM", 16, "INT", 18);
+    if (strlen(lex) > 10)
+    {
+      fprintf(listingFile, "LEXERR: Extra Long Integer: %s\n", lex);
+      printTok(lineNum, lex, "LEXERR", 99, "Extra Long Int", 99);
+    }
+    if (strlen(lex) > 1 && lex[0] == '0')
+    {
+      fprintf(listingFile, "LEXERR: Leading 0 on Integer: %s\n", lex);
+      printTok(lineNum, lex, "LEXERR", 99, "Leading 0", 99);
+    }
+
+    return 0;
+  }
+  else
+    return 1;
+}
+
+int relop(char *str)
 {
   char tmp[2];
   tmp[1] = '\0';
@@ -476,28 +550,30 @@ int relop(char *str) // HERE***
   }
 }
 
-void checkerr(char *str)
+int checkerr(char *str)
 {
   char tmp[2];
   tmp[1] = '\0';
+  memset(lex, 0, sizeof(lex));
 
   if (ispunct(str[f]))
   {
-    memset(lex, 0, sizeof(lex));
-    while (!isspace(str[f]))
-    {
-      tmp[0] = str[f];
-      strcat(lex, tmp);
-      f++;
-    }
+    tmp[0] = str[f];
+    strcat(lex, tmp);
+    f++;
     fprintf(listingFile, "LEXERR: Unrecognized Symbol: %s\n", lex);
     printTok(lineNum, lex, "LEXERR", 99, "Unrecognized Symbol", 99);
+    return 0;
   }
+  else
+    return 1;
 }
 
 int main()
 {
-  FILE *file = fopen("SamplePascalNoErrors.txt", "r");
+  // FILE *file = fopen("SamplePascalNoErrors.txt", "r");
+  // FILE *file = fopen("SamplePascalWithErrors.txt", "r");
+  FILE *file = fopen("Stub.txt", "r");
   if (file == NULL)
   {
     return 1;
@@ -548,15 +624,25 @@ int main()
         b = f;
         continue;
       }
+      else if (real(line) == 0)
+      {
+        b = f;
+        continue;
+      }
+      else if (intMach(line) == 0)
+      {
+        b = f;
+        continue;
+      }
       else if (relop(line) == 0)
       {
         b = f;
         continue;
       }
-      else
+      else if (checkerr(line) == 0)
       {
-        checkerr(line);
-        break;
+        b = f;
+        continue;
       }
     }
   }
