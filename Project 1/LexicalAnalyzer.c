@@ -22,7 +22,7 @@ char lex[MAX_LINE_LENGTH];
 int f = 0;
 int b = 0;
 int lineNum = 0;
-struct ResWord resWordArr[20];
+struct ResWord resWordArr[21];
 struct Node *symTable = NULL;
 
 void printTok(int lineNo, char *lexeme, char *tokName, int tokInt, char *attrName, int attrInt)
@@ -38,7 +38,7 @@ void printTokUnion(int lineNo, char *lexeme, char *tokName, int tokInt, char *at
 int checkResWord(char *lexeme)
 {
   // printf("Lex: %s\n", lexeme);
-  for (int i = 0; i < 20; i++)
+  for (int i = 0; i < 21; i++)
   {
     // printf("  Compare %s to %s\n", lexeme, resWordArr[i].resLex);
     if (strcmp(lexeme, resWordArr[i].resLex) == 0)
@@ -587,7 +587,8 @@ int main()
 {
   // FILE *file = fopen("SamplePascalNoErrors.txt", "r");
   // FILE *file = fopen("SamplePascalWithErrors.txt", "r");
-  FILE *file = fopen("Stub.txt", "r");
+  // FILE *file = fopen("Stub.txt", "r");
+  FILE *file = fopen("ShenoiProg.txt", "r");
   if (file == NULL)
   {
     return 1;

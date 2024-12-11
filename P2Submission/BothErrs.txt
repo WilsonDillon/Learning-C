@@ -1,0 +1,59 @@
+1  program test (input output);
+SYNERR: Expected COMMA or RPAR, but Received ID. Line 1. Lex: output
+2    var a : integer %;
+LEXERR: Unrecognized Symbol: %
+SYNERR: Expected SEMI, but Received LEXERR. Line 2. Lex: %
+SYNERR: Expected VAR, PROC, or BEG, but Received SEMI. Line 2. Lex: ;
+3    var b : real;
+4    var c : array [1..2] of integer;
+5    procedure proc1(x:integer;y:real;z:array[1..2] of integer;q:real);
+6      var d: integer;
+7      begin
+8        a:= 2;
+9        z[a] := 4.1223245657
+LEXERR: Extra Long Fractional Part: 4.1223245657
+SYNERR: Expected PLUS, MINUS, ID, NUM, LPAR, or NOT, but Received LEXERR. Line 9. Lex: 4.1223245657
+10        c[3] := 3
+SYNERR: Expected SEMI or END, but Received RBRACK. Line 10. Lex: ]
+11       end;
+12     procedure proc2(x: integer; y: integer);
+13       var e: real;
+14       procedure proc3(n: integer; z: real);
+15         var e: integer;
+16         procedure proc4(a: integer; z: array [1..3] of real);
+17           var x: integer;
+18           begin
+19             a:= 
+20           end;
+SYNERR: Expected PLUS, MINUS, ID, NUM, LPAR, or NOT, but Received END. Line 20. Lex: end
+21         begin
+22           a:= e;
+23           e:= c[e]
+24         end;
+25       begin
+26         call proc1(x, e, c, b);
+27         call proc3(c[1], e);
+28         e := e + 4.44;
+29         a:= (a mod y) di x;
+SYNERR: Expected MULOP, ADDOP, RELOP, THEN, DO, COMMA, RPAR, RBRACK, SEMI, END, or ELSE, but Received ID. Line 29. Lex: di
+30         while (a >< 4) and ((b <= e) or (not (a = c[a])))) do
+SYNERR: Expected ID, NUM, LPAR, NOT, PLUS, MINUS, but Received RELOP. Line 30. Lex: <
+SYNERR: Expected RPAR, but Received RELOP. Line 30. Lex: <
+SYNERR: Expected MULOP, ADDOP, RELOP, THEN, DO, COMMA, RPAR, RBRACK, SEMI, END, or ELSE, but Received NUM. Line 30. Lex: 4
+SYNERR: Expected DO, but Received RPAR. Line 30. Lex: )
+SYNERR: Expected ID, CALL, BEG, IF, or WHILE, but Received MULOP. Line 30. Lex: and
+31           begin
+32             a:= c[a] + 1
+33           end
+34       end;
+SYNERR: Expected SEMI, but Received END. Line 34. Lex: end
+SYNERR: Expected PROC or BEG, but Received SEMI. Line 34. Lex: ;
+35  begin
+36    call proc2(c[4], c[5)]);
+SYNERR: Expected RBRACK, but Received RPAR. Line 36. Lex: )
+SYNERR: Expected COMMA or RPAR, but Received RBRACK. Line 36. Lex: ]
+37    call proc2(c[4],2)
+38    if (a < 2) then a:= 1 else a := a + 2;
+SYNERR: Expected SEMI or END, but Received IF. Line 38. Lex: if
+39    if (b > 4.2) then a := c[a]
+40  end.

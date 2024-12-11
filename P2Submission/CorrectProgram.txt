@@ -2,7 +2,7 @@
 2    var a : integer;
 3    var b : real;
 4    var c : array [1..2] of integer;
-5    procedure proc1(x:integer;y:real; z:array[1..2] of integer;q:real);
+5    procedure proc1(x:integer;y:real;z:array[1..2] of integer;q:real);
 6      var d: integer;
 7      begin
 8        a:= 2;

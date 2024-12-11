@@ -17,4 +17,4 @@
 5 00.05 LEXERR 99 Leading 0 in Whole Part 99
 6 & LEXERR 99 Unrecognized Symbol 99
 6 @ LEXERR 99 Unrecognized Symbol 99
-6 EOF EOF 58 NIL 44
+6 $ EOF 58 NIL 44

@@ -1,0 +1,25 @@
+program example(input, output);
+var x, y: integer;
+begin
+  if b = 0 then gcd := a
+  else gcd := gcd(b, a mod b)
+end;
+var x := 0123456.1234560E+0123; 
+var x := 0123456.1234560;
+var x := 012345678910;
+<> <
+<=
+>
+>=
+=
+<
+begin
+  read(x, y);
+  write(gcd(x, y)) 
+end.
+thisisanIDthatistoolong
+
+1a23ds5
+a23d45f
+
+...@1symbol11334

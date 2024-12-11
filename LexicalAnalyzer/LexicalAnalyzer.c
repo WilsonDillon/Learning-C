@@ -84,6 +84,13 @@ int idRes(char *str)
       f++;
     }
 
+    if (strlen(lex) > 10)
+    {
+      fprintf(listingFile, "LEXERR: Extra Long ID: %s\n", lex);
+      printTok(lineNum, lex, "LEXERR", 99, "Extra Long ID", 99);
+      return 0;
+    }
+
     // printf("IDRES: %s\n", lex);
     if (checkResWord(lex) == 1)
     {
@@ -105,11 +112,6 @@ int idRes(char *str)
         printTokUnion(lineNum, lex, "ID", 53, "NIL", symNode->attr);
         free(symbol);
       }
-    }
-    if (strlen(lex) > 10)
-    {
-      fprintf(listingFile, "LEXERR: Extra Long ID: %s\n", lex);
-      printTok(lineNum, lex, "LEXERR", 99, "Extra Long ID", 99);
     }
     return 0;
   }
@@ -319,18 +321,19 @@ int longReal(char *str)
     }
     // printf("here");
     // printf("LONGREAL: %s\n", lex);
-    printTok(lineNum, lex, "NUM", 16, "REAL", 19);
 
     // Whole part
     if (strlen(lex1) > 5)
     {
       fprintf(listingFile, "LEXERR: Extra Long Whole Part: %s\n", lex);
       printTok(lineNum, lex, "LEXERR", 99, "Extra Long Whole Part", 99);
+      return 0;
     }
     if (strlen(lex1) > 0 && lex1[0] == '0')
     {
       fprintf(listingFile, "LEXERR: Leading 0 in Whole Part: %s\n", lex);
       printTok(lineNum, lex, "LEXERR", 99, "Leading 0", 99);
+      return 0;
     }
 
     // Frational Part
@@ -338,11 +341,13 @@ int longReal(char *str)
     {
       fprintf(listingFile, "LEXERR: Extra Long Fractional Part: %s\n", lex);
       printTok(lineNum, lex, "LEXERR", 99, "Extra Long Fractional Part", 99);
+      return 0;
     }
     if (strlen(lex2) > 0 && lex2[strlen(lex2) - 1] == '0')
     {
       fprintf(listingFile, "LEXERR: Trailing 0 in Fractional Part: %s\n", lex);
       printTok(lineNum, lex, "LEXERR", 99, "Trailing 0 in Fractional Part", 99);
+      return 0;
     }
 
     // Exponential Part
@@ -350,16 +355,19 @@ int longReal(char *str)
     {
       fprintf(listingFile, "LEXERR: Extra Long Exponential Part: %s\n", lex);
       printTok(lineNum, lex, "LEXERR", 99, "Extra Long Exponent", 99);
+      return 0;
     }
     if (strlen(lex3) > 0 && lex3[0] == '0')
     {
       fprintf(listingFile, "LEXERR: Leading 0 in Exponential Part: %s\n", lex);
       printTok(lineNum, lex, "LEXERR", 99, "Leading 0 in Exponent", 99);
+      return 0;
     }
     // printf("Before decimal (lex1): %s\n", lex1);
     // printf("After decimal (lex2): %s\n", lex2);
     // printf("Exponent part (lex3): %s\n", lex3);
 
+    printTok(lineNum, lex, "NUM", 16, "REAL", 19);
     return 0;
   }
   return 1;
@@ -402,27 +410,31 @@ int real(char *str)
           f++;
         }
 
-        printTok(lineNum, lex, "NUM", 16, "REAL", 19);
         if (strlen(lex1) > 5)
         {
           fprintf(listingFile, "LEXERR: Extra Long Whole Part: %s\n", lex);
           printTok(lineNum, lex, "LEXERR", 99, "Extra Long Whole Part", 99);
+          return 0;
         }
         if (strlen(lex1) > 0 && lex1[0] == '0')
         {
           fprintf(listingFile, "LEXERR: Leading 0 in Whole Part: %s\n", lex);
           printTok(lineNum, lex, "LEXERR", 99, "Leading 0 in Whole Part", 99);
+          return 0;
         }
         if (strlen(lex2) > 5)
         {
           fprintf(listingFile, "LEXERR: Extra Long Fractional Part: %s\n", lex);
           printTok(lineNum, lex, "LEXERR", 99, "Extra Long Fractional Part", 99);
+          return 0;
         }
         if (strlen(lex2) > 0 && lex2[strlen(lex2) - 1] == '0')
         {
           fprintf(listingFile, "LEXERR: Trailing 0 in Fractional Part: %s\n", lex);
           printTok(lineNum, lex, "LEXERR", 99, "Trailing 0 in Fractional Part", 99);
+          return 0;
         }
+        printTok(lineNum, lex, "NUM", 16, "REAL", 19);
       }
       else
       {
@@ -459,18 +471,20 @@ int intMach(char *str)
       f++;
     }
 
-    printTok(lineNum, lex, "NUM", 16, "INT", 18);
     if (strlen(lex) > 10)
     {
       fprintf(listingFile, "LEXERR: Extra Long Integer: %s\n", lex);
       printTok(lineNum, lex, "LEXERR", 99, "Extra Long Int", 99);
+      return 0;
     }
     if (strlen(lex) > 1 && lex[0] == '0')
     {
       fprintf(listingFile, "LEXERR: Leading 0 on Integer: %s\n", lex);
       printTok(lineNum, lex, "LEXERR", 99, "Leading 0", 99);
+      return 0;
     }
 
+    printTok(lineNum, lex, "NUM", 16, "INT", 18);
     return 0;
   }
   else

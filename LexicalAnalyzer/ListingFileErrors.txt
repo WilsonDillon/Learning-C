@@ -6,19 +6,10 @@
 6  end;
 7  var x := 0123456.1234560E+0123; 
 LEXERR: Extra Long Whole Part: 0123456.1234560E+0123
-LEXERR: Leading 0 in Whole Part: 0123456.1234560E+0123
-LEXERR: Extra Long Fractional Part: 0123456.1234560E+0123
-LEXERR: Trailing 0 in Fractional Part: 0123456.1234560E+0123
-LEXERR: Extra Long Exponential Part: 0123456.1234560E+0123
-LEXERR: Leading 0 in Exponential Part: 0123456.1234560E+0123
 8  var x := 0123456.1234560;
 LEXERR: Extra Long Whole Part: 0123456.1234560
-LEXERR: Leading 0 in Whole Part: 0123456.1234560
-LEXERR: Extra Long Fractional Part: 0123456.1234560
-LEXERR: Trailing 0 in Fractional Part: 0123456.1234560
 9  var x := 012345678910;
 LEXERR: Extra Long Integer: 012345678910
-LEXERR: Leading 0 on Integer: 012345678910
 10  <> <
 11  <=
 12  >
