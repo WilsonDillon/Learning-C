@@ -1,0 +1,12 @@
+test
+a	0
+b	4
+c	12
+proc1
+d	0
+proc2
+e	0
+proc3
+e	0
+proc4
+x	0

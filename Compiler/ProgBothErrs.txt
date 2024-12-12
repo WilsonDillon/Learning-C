@@ -1,4 +1,4 @@
-program test12345678 (input output);
+program test123 (input output);
   var a : integer @;
   var b : real;
   var c : array [1..2] of integer;

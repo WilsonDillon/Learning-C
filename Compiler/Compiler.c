@@ -41,14 +41,42 @@ typedef struct SynErr
   char lex[72];
 } SynErr;
 
+// Define a structure for lexical errors
+typedef struct SemErr
+{
+  int lineNum;
+  char err[256];
+  char lex[72];
+} SemErr;
+
+struct Profile
+{
+  char lex[100];
+  char profStr[20];
+  struct Profile *next;
+};
+
+struct Symbol
+{
+  char lexeme[100];
+  int symbolType;
+  struct Symbol *next;
+  struct Symbol *prev;
+};
+
 // Global variables to store errors
 LexErr *lexErrors = NULL; // Dynamic array of errors
 SynErr *synErrors = NULL; // Dynamic array of errors
-int lexErrCount = 0;      // Number of errors
-int lexErrCapacity = 0;   // Current capacity of the errors array
-int synErrCount = 0;      // Number of errors
-int synErrCapacity = 0;   // Current capacity of the errors array
+SemErr *semErrors = NULL; // Dynamic array of errors
+
+int lexErrCount = 0;    // Number of errors
+int lexErrCapacity = 0; // Current capacity of the errors array
+int synErrCount = 0;    // Number of errors
+int synErrCapacity = 0; // Current capacity of the errors array
 char lexErrMsg[256];
+int semErrCount = 0;    // Number of errors
+int semErrCapacity = 0; // Current capacity of the errors array
+char semErrMsg[256];
 
 FILE *listingFile;
 FILE *tokenFile;
@@ -62,12 +90,23 @@ struct Node *symTable = NULL;
 struct Node *tokList = NULL;
 struct Node *tok = NULL;
 
+struct Profile *profileHead = NULL;
+struct Symbol *symtop = NULL;
+struct Symbol *symbottom = NULL;
+struct Symbol *greenNodeStack = NULL; // green node stack
+struct Symbol *greenNode = NULL;      // green node
+char *profile = NULL;
+char *paramList = NULL;
+int offset = 0;
+int typeSize = 0;
+FILE *outTable;
+
 void subprog_decs();
 void decs();
-void type();
+int type();
 void cmpd_stmt();
 void stmt();
-void expr();
+int expr();
 
 SynchSet *createSynchSet()
 {
@@ -273,6 +312,33 @@ void lexerr(char *err, char *lex, int lineNum)
   // printf("SYNERR: Expected %s, but Received %s. Line %d. Lex: %s\n", exp, rec, tok->lineNum, tok->lex);
 }
 
+void semerr(char *err, char *lex, int lineNum)
+{
+  // Ensure there is enough capacity in the array
+  if (semErrCount >= semErrCapacity)
+  {
+    semErrCapacity = (semErrCapacity == 0) ? 10 : semErrCapacity * 2; // Double capacity
+    semErrors = realloc(semErrors, semErrCapacity * sizeof(LexErr));
+    if (!semErrors)
+    {
+      fprintf(stderr, "Memory allocation failed\n");
+      exit(1);
+    }
+  }
+
+  // Add the new error to the array
+  strcpy(semErrMsg, "");
+  strcat(semErrMsg, "SEMERR: ");
+  strcat(semErrMsg, err);
+  // strcat(semErrMsg, lex);
+  // strcat(semErrMsg, ", Lex: ");
+  // strcat(semErrMsg, lex);
+  strcat(semErrMsg, "\n");
+  SemErr *newError = &semErrors[semErrCount++];
+  strncpy(newError->err, semErrMsg, sizeof(newError->err) - 1);
+  newError->lineNum = lineNum;
+}
+
 // Function to insert syntax errors into the listing file
 void insertErrs()
 {
@@ -283,8 +349,6 @@ void insertErrs()
     return;
   }
 
-  // printf("%d Errors\n", synErrCount);
-
   // Read the original file into memory
   char **lines = NULL;
   int lineCount = 0;
@@ -292,7 +356,6 @@ void insertErrs()
 
   while (fgets(buffer, sizeof(buffer), listingFile))
   {
-    // printf("here\n");
     lines = realloc(lines, sizeof(char *) * (lineCount + 1));
     lines[lineCount] = strdup(buffer);
     lineCount++;
@@ -301,24 +364,10 @@ void insertErrs()
 
   // Open the listing file for writing
   listingFile = fopen("ListingFile.txt", "w");
-  // if (!listingFile)
-  // {
-  //   perror("Error reopening listing file for writing");
-  //   return;
-  // }
 
-  // int x = 0;
-
-  // int lenLexErrs = sizeof(lexErrors) / sizeof(lexErrors[0]);
-  // int lenSynErrs = sizeof(synErrors) / sizeof(synErrors[0]);
-  // Loop through lines and insert errors where needed
   for (int i = 0; i < lineCount; i++)
   {
-    // printf("got here\n");
-    // Write the current line
     fprintf(listingFile, "%s", lines[i]);
-
-    // printf("%s, %d", lexErrors[0].err, lexErrCount);
 
     for (int j = 0; j < lexErrCount; j++)
     {
@@ -336,56 +385,13 @@ void insertErrs()
       }
     }
 
-    // Check if any LEXERR or SYNERR belongs to this line
-    // int lexErrWritten = 0; // To track if LEXERRs are written
-    // for (int j = 0; j < errorCount; j++)
-    // {
-    // printf("%d\n", j);
-    // if (errors[j].lineNum == i)
-    // { // Line numbers are 1-based
-    // printf("%s\n", lines[i + 1]);
-    // printf("Error on Line: i = %d, lineNum = %d\n", i, errors[j].lineNum);
-
-    // if (strstr(lines[i], "LEXERR:"))
-    // {
-    //   x--;
-    //   // printf("%s\n", lines[i]);
-    //   // printf("There is a LEXERR on line %d\n", i);
-    //   lexErrWritten = 1; // LEXERR already exists
-    // }
-    // }
-    // }
-
-    // Now write SYNERRs, ensuring they follow any LEXERRs
-    // for (int j = 0; j < synErrCount; j++)
-    // {
-    //   if (synErrors[j].lineNum == i + 1 + x)
-    //   {
-    //     if (lexErrWritten == 1)
-    //     {
-    //       lexErrWritten = 0;
-    //     }
-    //     else
-    //     {
-    //       printf(lines[i]);
-    //       printf("SYNERR on line %d\n", synErrors[j].lineNum);
-    //       fprintf(listingFile, "SYNERR: Expected %s, but Received %s. Line %d. Lex: %s\n", synErrors[j].exp, synErrors[j].rec, synErrors[j].lineNum, synErrors[j].lex);
-    //     }
-    //     // errors[j].lineNum = errors[j].lineNum + 500;
-    //   }
-    // if (errors[j].lineNum == i && strstr(lines[i], "LEXERR:"))
-    // {
-    //   // if (!lexErrWritten || strstr(lines[i+1], "LEXERR:"))
-    //   // {
-    //   printf("Actual LineNum: %d\n", errors[j].lineNum);
-    //   // fprintf(listingFile, "SYNERR: Expected %s, but Received %s. Line %d. Lex: %s\n", errors[j].exp, errors[j].rec, errors[j].lineNum, errors[j].lex);
-    //   // }
-    // }
-    // else if (errors[j].lineNum == i + 1 && !lexErrWritten)
-    // {
-    //   // fprintf(listingFile, "SYNERRx: Expected %s, but Received %s. Line %d. Lex: %s\n", errors[j].exp, errors[j].rec, errors[j].lineNum, errors[j].lex);
-    // }
-    // }
+    for (int j = 0; j < semErrCount; j++)
+    {
+      if (semErrors[j].lineNum == i + 1)
+      {
+        fprintf(listingFile, "%s", semErrors[j].err);
+      }
+    }
   }
 
   // Clean up memory
@@ -395,6 +401,238 @@ void insertErrs()
   }
   free(lines);
   fclose(listingFile);
+}
+
+void pop()
+{
+  if (greenNodeStack != NULL)
+  {
+    struct Symbol *temp = NULL;
+    temp = (struct Symbol *)malloc(sizeof(struct Symbol));
+    temp = symbottom;
+    while (temp->prev != NULL)
+    {
+      if (strcmp(greenNodeStack->lexeme, temp->lexeme) == 0)
+      {
+        struct Symbol *temp2 = NULL;
+        temp2 = (struct Symbol *)malloc(sizeof(struct Symbol));
+        temp2 = temp->next;
+        free(temp2);
+        temp->next = NULL;
+        symbottom = temp;
+
+        struct Symbol *tempStack = NULL;
+        tempStack = (struct Symbol *)malloc(sizeof(struct Symbol));
+        tempStack = greenNodeStack;
+        greenNodeStack = greenNodeStack->next;
+        free(tempStack);
+
+        return;
+      }
+
+      temp = temp->prev;
+    }
+
+    printf("did not find matching green node in list\n");
+    return;
+  }
+  else
+  {
+    printf("green node stack is empty\n");
+    return;
+  }
+}
+
+void checkAddGreenNode(char *currentSymbol, int currSymbolType)
+{
+  struct Symbol *currentNode = NULL;                            // new node
+  currentNode = (struct Symbol *)malloc(sizeof(struct Symbol)); // make space in memory
+  strcpy(currentNode->lexeme, currentSymbol);
+  currentNode->symbolType = currSymbolType;
+  currentNode->next = NULL;
+  symbottom = symtop;
+
+  if (symtop == NULL)
+  {
+    currentNode->prev = NULL;
+    symtop = currentNode;
+    greenNode = currentNode;
+    symtop = currentNode;
+
+    struct Symbol *stackNode = (struct Symbol *)malloc(sizeof(struct Symbol));
+    strcpy(stackNode->lexeme, currentSymbol);
+    stackNode->symbolType = currSymbolType;
+    stackNode->next = greenNodeStack;
+    greenNodeStack = stackNode;
+    return;
+  }
+  else
+  {
+    while (symbottom->next != NULL)
+    {
+      if (strcmp(symbottom->lexeme, currentSymbol) == 0)
+      {
+        semerr("attempted to redeclare ID with same procedure or program name", tok->lex, tok->lineNum);
+        return;
+      }
+
+      symbottom = symbottom->next;
+    }
+
+    symbottom->next = currentNode;
+    currentNode->prev = symbottom;
+    greenNode = currentNode;
+
+    struct Symbol *stackNode = (struct Symbol *)malloc(sizeof(struct Symbol));
+    strcpy(stackNode->lexeme, currentSymbol);
+    stackNode->symbolType = currSymbolType;
+    stackNode->next = greenNodeStack;
+    greenNodeStack = stackNode;
+  }
+}
+
+void checkAddBlueNode(char *currentSymbol, int currSymbolType)
+{
+  struct Symbol *currentNode = NULL;
+  currentNode = (struct Symbol *)malloc(sizeof(struct Symbol));
+  strcpy(currentNode->lexeme, currentSymbol);
+  currentNode->symbolType = currSymbolType;
+  currentNode->next = NULL;
+  symbottom = greenNode;
+
+  while (symbottom->next != NULL)
+  {
+    if (strcmp(symbottom->lexeme, currentSymbol) == 0)
+    {
+      semerr("attempted to redeclare ID with same procedure or program name", tok->lex, tok->lineNum);
+      return;
+    }
+    symbottom = symbottom->next;
+  }
+
+  if (strcmp(symbottom->lexeme, currentSymbol) == 0)
+  {
+    semerr("attempted to redeclare ID with same procedure or program name", tok->lex, tok->lineNum);
+    return;
+  }
+  symbottom->next = currentNode;
+  currentNode->prev = symbottom;
+}
+
+void getProfile(char *lexeme)
+{
+  struct Profile *temp = profileHead;
+  while (temp->next != NULL)
+  {
+    if (strcmp(temp->lex, lexeme) == 0)
+    {
+      struct Symbol *temp2 = symtop;
+
+      while (temp2->next != NULL)
+      {
+
+        if (strcmp(temp2->lexeme, lexeme) == 0)
+        {
+          strcpy(profile, temp->profStr);
+          return;
+        }
+
+        temp2 = temp2->next;
+      }
+      if (strcmp(temp2->lexeme, lexeme) == 0)
+      {
+        strcpy(profile, temp->profStr);
+        return;
+      }
+    }
+
+    temp = temp->next;
+  }
+
+  if (strcmp(temp->lex, lexeme) == 0)
+  {
+    struct Symbol *temp2 = symtop;
+
+    while (temp2->next != NULL)
+    {
+      if (strcmp(temp2->lexeme, lexeme) == 0)
+      {
+        strcpy(profile, temp->profStr);
+        return;
+      }
+
+      temp2 = temp2->next;
+    }
+    if (strcmp(temp2->lexeme, lexeme) == 0)
+    {
+      strcpy(profile, temp->profStr);
+      return;
+    }
+  }
+
+  strcpy(profile, "999");
+  return;
+}
+
+int getType(char *currentLexeme)
+{
+  // printf("here\n");
+  struct Symbol *temp = symbottom; // start from end of list
+  int id_t;
+
+  while (temp != NULL)
+  {
+    if (strcmp(temp->lexeme, currentLexeme) == 0)
+    {
+      switch (temp->symbolType)
+      {
+      case 1:
+        id_t = 1;
+        break;
+      case 2:
+        id_t = 2;
+        break;
+      case 3:
+        id_t = 3;
+        break;
+      case 4:
+        id_t = 4;
+        break;
+      case 5:
+        id_t = 1;
+        break;
+      case 6:
+        id_t = 2;
+        break;
+      case 7:
+        id_t = 3;
+        break;
+      case 8:
+        id_t = 4;
+        break;
+      default:
+        printf("id type not INT, REAL, AINT, AREAL");
+        break;
+      }
+      return id_t;
+    }
+    temp = temp->prev;
+  }
+  semerr("undeclared variable", tok->lex, tok->lineNum);
+  return 0;
+}
+
+void printSymbolTable(struct Symbol *head)
+{
+  int count = 0;
+  struct Symbol *currNode = head;
+  while (currNode != NULL)
+  {
+    printf("%-15s %-3d\n", currNode->lexeme, currNode->symbolType);
+    // fprintf(outList, "%-15s %-3d\n", currNode->lexeme, currNode->symbolType); // print id lexeme, id type
+    currNode = currNode->next;
+    count++;
+  }
 }
 
 void printTok(int lineNo, char *lexeme, char *tokName, int tokInt, char *attrName, int attrInt)
@@ -748,7 +986,7 @@ int longReal(char *str)
     // printf("After decimal (lex2): %s\n", lex2);
     // printf("Exponent part (lex3): %s\n", lex3);
 
-    printTok(lineNum, lex, "NUM", 16, "REAL", 19);
+    printTok(lineNum, lex, "NUM", 16, "REAL", 2);
     return 0;
   }
   return 1;
@@ -819,7 +1057,7 @@ int real(char *str)
           lexerr("LEXERR: Trailing 0 in Fractional Part: ", lex, lineNum);
           return 0;
         }
-        printTok(lineNum, lex, "NUM", 16, "REAL", 19);
+        printTok(lineNum, lex, "NUM", 16, "REAL", 2);
       }
       else
       {
@@ -871,7 +1109,7 @@ int intMach(char *str)
       return 0;
     }
 
-    printTok(lineNum, lex, "NUM", 16, "INT", 18);
+    printTok(lineNum, lex, "NUM", 16, "INT", 1);
     return 0;
   }
   else
@@ -995,8 +1233,465 @@ void match(char *t)
   }
 }
 
-void sign()
+int checkFactorPrime(int factorPrime_i, int expr_t)
 {
+  int factorPrime_t;
+
+  if (factorPrime_i == 99)
+  {
+    factorPrime_t = 99;
+    return factorPrime_t;
+  }
+  if (expr_t == 99 || expr_t == 99)
+  {
+    factorPrime_t = 99;
+    return factorPrime_t;
+  }
+  else if (expr_t == 1)
+  {
+    if (factorPrime_i == 3)
+    {
+      factorPrime_t = 1;
+    }
+    else if (factorPrime_i == 4)
+    {
+      factorPrime_t = 2;
+    }
+    else
+    {
+      factorPrime_t = 99;
+      semerr("factor tail type is not an array type", tok->lex, tok->lineNum);
+    }
+    return factorPrime_t;
+  }
+  else
+  {
+    factorPrime_t = 99;
+    semerr("expression type is not int", tok->lex, tok->lineNum);
+    return factorPrime_t;
+  }
+}
+
+int checkFactorPrimeI(int id_t)
+{
+  int factorPrime_i;
+
+  if (id_t == 99)
+  {
+    factorPrime_i = 99;
+  }
+  else if (id_t == 1)
+  {
+    factorPrime_i = 1;
+  }
+  else if (id_t == 2)
+  {
+    factorPrime_i = 2;
+  }
+  else if (id_t == 3)
+  {
+    factorPrime_i = 3;
+  }
+  else if (id_t == 4)
+  {
+    factorPrime_i = 4;
+  }
+  else
+  {
+    factorPrime_i = 99;
+    semerr("variable is undeclared or its type was not int, real, aint, or areal", tok->lex, tok->lineNum);
+  }
+
+  return factorPrime_i;
+}
+
+int checkNumAttr(int num_attr)
+{
+  int factor_t;
+  if (num_attr == 99)
+  {
+    factor_t = 99;
+  }
+  else if (num_attr == 1)
+  {
+    factor_t = 1;
+  }
+  else if (num_attr == 2)
+  {
+    factor_t = 2;
+  }
+  else
+  {
+    factor_t = 99;
+    semerr("factor type was not int or real", tok->lex, tok->lineNum);
+  }
+  return factor_t;
+}
+
+int checkFactor1T(int factor1_t)
+{
+  int factor_t;
+
+  if (factor1_t == 99)
+  {
+    factor_t = 99;
+  }
+  else if (factor1_t == 9)
+  {
+    factor_t = 9;
+  }
+  else
+  {
+    factor_t = 99;
+    semerr("factor type is not bool", tok->lex, tok->lineNum);
+  }
+  return factor_t;
+}
+
+int checkMulopAttr(int mulop_attr, int factor_t, int termPrime_i)
+{
+  int termPrime1_i;
+
+  if (termPrime_i == 99 || factor_t == 99)
+  {
+    termPrime1_i = 99;
+    return termPrime1_i;
+  }
+  if (mulop_attr == 99)
+  {
+    termPrime1_i = 99;
+    return termPrime1_i;
+  }
+  else if (mulop_attr == 38)
+  {
+    if (factor_t == 1 && termPrime_i == 1)
+    {
+      termPrime1_i = 1;
+    }
+    else if (factor_t == 2 && termPrime_i == 2)
+    {
+      termPrime1_i = 2;
+    }
+    else
+    {
+      termPrime1_i = 99;
+      semerr("expected factor type and term prime i to both be int or real", tok->lex, tok->lineNum);
+    }
+    return termPrime1_i;
+  }
+  else if (mulop_attr == 39)
+  {
+    if (factor_t == 2 && termPrime_i == 2)
+    {
+      termPrime1_i = 2;
+    }
+    else
+    {
+      termPrime1_i = 99;
+      semerr("expected factor type and term prime i to both be real", tok->lex, tok->lineNum);
+    }
+    return termPrime1_i;
+  }
+  else if (mulop_attr == 40)
+  {
+    if (factor_t == 1 && termPrime_i == 1)
+    {
+      termPrime1_i = 1;
+    }
+    else
+    {
+      termPrime1_i = 99;
+      semerr("expected factor type and term prime i to both be int", tok->lex, tok->lineNum);
+    }
+    return termPrime1_i;
+  }
+  else if (mulop_attr == 42)
+  {
+    if (factor_t == 9 && termPrime_i == 9)
+    {
+      termPrime1_i = 9;
+    }
+    else
+    {
+      termPrime1_i = 99;
+      semerr("expected factor type and term prime i to both be bool", tok->lex, tok->lineNum);
+    }
+    return termPrime1_i;
+  }
+  else if (mulop_attr == 41)
+  {
+    if (factor_t == 1 && termPrime_i == 1)
+    {
+      termPrime1_i = 1;
+    }
+    else
+    {
+      termPrime1_i = 99;
+      semerr("expected factor type and term prime i to both be int", tok->lex, tok->lineNum);
+    }
+    return termPrime1_i;
+  }
+  else
+  {
+    printf("Big error in checkMulopAttr()");
+    return 0;
+  }
+}
+
+int checkAddopAttr(int addop_attr, int simple_exprPrime_i, int term_t)
+{
+  int simple_exprPrime1_i;
+
+  if (term_t == 99 || simple_exprPrime_i == 99)
+  {
+    simple_exprPrime1_i = 99;
+    return simple_exprPrime1_i;
+  }
+  if (addop_attr == 99)
+  {
+    simple_exprPrime1_i = 99;
+    return simple_exprPrime1_i;
+  }
+  else
+  {
+    if (addop_attr == 35)
+    {
+      if (term_t == 1 && simple_exprPrime_i == 1)
+      {
+        simple_exprPrime1_i = 1;
+      }
+      else if (term_t == 2 && simple_exprPrime_i == 2)
+      {
+        simple_exprPrime1_i = 2;
+      }
+      else
+      {
+        simple_exprPrime1_i = 99;
+        semerr("expected term t and simple_exprPrime i to both be int or both real", tok->lex, tok->lineNum);
+      }
+      return simple_exprPrime1_i;
+    }
+    else if (addop_attr == 36)
+    {
+      if (term_t == 1 && simple_exprPrime_i == 1)
+      {
+        simple_exprPrime1_i = 1;
+      }
+      else if (term_t == 2 && simple_exprPrime_i == 2)
+      {
+        simple_exprPrime1_i = 2;
+      }
+      else
+      {
+        simple_exprPrime1_i = 99;
+        semerr("expected term t and simple_exprPrime i to both be int or both real", tok->lex, tok->lineNum);
+      }
+      return simple_exprPrime1_i;
+    }
+    else if (addop_attr == 37)
+    {
+      if (term_t == 9 && simple_exprPrime_i == 9)
+      {
+        simple_exprPrime1_i = 9;
+      }
+      else
+      {
+        simple_exprPrime1_i = 99;
+        semerr("expected term t and simple_exprPrime i to both be bool", tok->lex, tok->lineNum);
+      }
+      return simple_exprPrime1_i;
+    }
+    else
+    {
+      printf("Big error in checkAddopAttr()");
+      return 0;
+    }
+  }
+}
+
+int checkTermT(int term_t)
+{
+  int simple_exprPrime_i;
+
+  if (term_t == 99)
+  {
+    simple_exprPrime_i = 99;
+  }
+  else if (term_t == 1)
+  {
+    simple_exprPrime_i = 1;
+  }
+  else if (term_t == 2)
+  {
+    simple_exprPrime_i = 2;
+  }
+  else
+  {
+    simple_exprPrime_i = 99;
+    semerr("expected term t int or real", tok->lex, tok->lineNum);
+  }
+  return simple_exprPrime_i;
+}
+
+void checkProc(char *lexeme)
+{
+  struct Symbol *temp2 = symtop;
+  while (temp2->next != NULL)
+  {
+    if (strcmp(temp2->lexeme, lexeme) == 0)
+    {
+      return;
+    }
+    temp2 = temp2->next;
+  }
+  if (strcmp(temp2->lexeme, lexeme) == 0)
+  {
+    return;
+  }
+  semerr("undeclared procedure", tok->lex, tok->lineNum);
+  return;
+}
+
+int checkRelopAttr(int simple_expr_t, int exprPrime_i)
+{
+  int exprPrime_t;
+
+  if (exprPrime_i == 99 || simple_expr_t == 99)
+  {
+    exprPrime_t = 99;
+    return exprPrime_t;
+  }
+  if (exprPrime_i == 1)
+  {
+    if (simple_expr_t == 1)
+    {
+      exprPrime_t = 9;
+    }
+    else
+    {
+      exprPrime_t = 99;
+      semerr("expected exprPrime i and simple_expr t to both be int", tok->lex, tok->lineNum);
+    }
+  }
+  else if (exprPrime_i == 2)
+  {
+    if (simple_expr_t == 2)
+    {
+      exprPrime_t = 9;
+    }
+    else
+    {
+      exprPrime_t = 99;
+      semerr("expected exprPrime i and simple_expr t to both be real", tok->lex, tok->lineNum);
+    }
+  }
+  else
+  {
+    exprPrime_t = 99;
+    semerr("expected exprPrime i and simple_expr t to both be int or both real", tok->lex, tok->lineNum);
+  }
+  return exprPrime_t;
+}
+
+int checkVarPrime(int expr_t, int varPrime_i)
+{
+  int varPrime_t;
+
+  if (expr_t == 99 || varPrime_i == 99)
+  {
+    varPrime_t = 99;
+    return varPrime_t;
+  }
+  if (varPrime_i == 3)
+  {
+    if (expr_t == 1)
+    {
+      varPrime_t = 1;
+    }
+    else
+    {
+      varPrime_t = 99;
+      semerr("expected expr type int", tok->lex, tok->lineNum);
+    }
+  }
+  else if (varPrime_i == 4)
+  {
+    if (expr_t == 1)
+    {
+      varPrime_t = 2;
+    }
+    else
+    {
+      varPrime_t = 99;
+      semerr("expected expr type int", tok->lex, tok->lineNum);
+    }
+  }
+  else
+  {
+    varPrime_t = 99;
+    semerr("expected varPrime i aint or areal1", tok->lex, tok->lineNum);
+  }
+  return varPrime_t;
+}
+
+void checkVarT(int var_t, int expr_t)
+{
+  if (expr_t == 1)
+  {
+    if (var_t == 2)
+    {
+      semerr("expected var type int and expr type int", tok->lex, tok->lineNum);
+    }
+  }
+  else if (expr_t == 2)
+  {
+    if (var_t == 1)
+    {
+      semerr("expected var type real and expr type real", tok->lex, tok->lineNum);
+    }
+  }
+  else if (expr_t == 3 || expr_t == 4)
+  {
+    semerr("expected var type and expr type to both be int or both real", tok->lex, tok->lineNum);
+  }
+}
+
+void checkExprT(int expr_t)
+{
+  if (expr_t != 9 && expr_t != 99)
+  {
+    semerr("expected expr type bool", tok->lex, tok->lineNum);
+  }
+}
+
+int checkStdTypeT(int std_type_t)
+{
+  int type_t;
+
+  if (std_type_t == 99)
+  {
+    type_t = 99;
+  }
+  else if (std_type_t == 1)
+  {
+    type_t = 3;
+  }
+  else if (std_type_t == 2)
+  {
+    type_t = 4;
+  }
+  else
+  {
+    printf("Big error in checkStdTypeT()");
+    exit(0);
+  }
+  return type_t;
+}
+
+int sign()
+{
+  int sign_attr;
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "ID");
@@ -1007,10 +1702,16 @@ void sign()
   if (strcmp(tok->tokStr, "PLUS") == 0)
   {
     match("PLUS");
+    sign_attr = tok->attr.attrInt;
+    freeSynchSet(set);
+    return sign_attr;
   }
   else if (strcmp(tok->tokStr, "MINUS") == 0)
   {
     match("MINUS");
+    sign_attr = tok->attr.attrInt;
+    freeSynchSet(set);
+    return sign_attr;
   }
   else
   {
@@ -1019,13 +1720,16 @@ void sign()
     {
       tok = getNextTok();
     }
+    freeSynchSet(set);
+    return 0;
   }
-
-  freeSynchSet(set);
 }
 
-void factorPrime()
+int factorPrime(int factorPrime_i)
 {
+  int factorPrime_t;
+  int expr_t;
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "MULOP");
@@ -1043,8 +1747,11 @@ void factorPrime()
   if (strcmp(tok->tokStr, "LBRACK") == 0)
   {
     match("LBRACK");
-    expr();
+    expr_t = expr();
+    factorPrime_t = checkFactorPrime(factorPrime_i, expr_t);
     match("RBRACK");
+    freeSynchSet(set);
+    return factorPrime_t;
   }
   else if (strcmp(tok->tokStr, "MULOP") == 0 ||
            strcmp(tok->tokStr, "ADDOP") == 0 ||
@@ -1058,6 +1765,9 @@ void factorPrime()
            strcmp(tok->tokStr, "END") == 0 ||
            strcmp(tok->tokStr, "ELSE") == 0)
   {
+    factorPrime_t = factorPrime_i;
+    freeSynchSet(set);
+    return factorPrime_t;
   }
   else
   {
@@ -1066,13 +1776,21 @@ void factorPrime()
     {
       tok = getNextTok();
     }
+    freeSynchSet(set);
+    return 0;
   }
-
-  freeSynchSet(set);
 }
 
-void factor()
+int factor()
 {
+  int factor_t;
+  int id_t;
+  int factorPrime_i;
+  int factorPrime_t;
+  int num_attr;
+  int expr_t;
+  int factor1_t;
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "MULOP");
@@ -1089,23 +1807,38 @@ void factor()
 
   if (strcmp(tok->tokStr, "ID") == 0)
   {
+    id_t = getType(tok->lex);
     match("ID");
-    factorPrime();
+    factorPrime_i = checkFactorPrimeI(id_t);
+    factorPrime_t = factorPrime(factorPrime_i);
+    factor_t = factorPrime_t;
+    freeSynchSet(set);
+    return factor_t;
   }
   else if (strcmp(tok->tokStr, "NUM") == 0)
   {
+    num_attr = tok->attr.attrInt;
     match("NUM");
+    factor_t = checkNumAttr(num_attr);
+    freeSynchSet(set);
+    return factor_t;
   }
   else if (strcmp(tok->tokStr, "LPAR") == 0)
   {
     match("LPAR");
-    expr();
+    expr_t = expr();
     match("RPAR");
+    factor_t = expr_t;
+    freeSynchSet(set);
+    return factor_t;
   }
   else if (strcmp(tok->tokStr, "NOT") == 0)
   {
     match("NOT");
-    factor();
+    factor1_t = factor();
+    factor_t = checkFactor1T(factor1_t);
+    freeSynchSet(set);
+    return factor_t;
   }
   else
   {
@@ -1114,13 +1847,18 @@ void factor()
     {
       tok = getNextTok();
     }
+    freeSynchSet(set);
+    return 0;
   }
-
-  freeSynchSet(set);
 }
 
-void termPrime()
+int termPrime(int termPrime_i)
 {
+  int termPrime_t;
+  int mulop_attr;
+  int factor_t;
+  int termPrime1_i;
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "ADDOP");
@@ -1136,9 +1874,13 @@ void termPrime()
 
   if (strcmp(tok->tokStr, "MULOP") == 0)
   {
+    mulop_attr = tok->attr.attrInt;
     match("MULOP");
-    factor();
-    termPrime();
+    factor_t = factor();
+    termPrime1_i = checkMulopAttr(mulop_attr, factor_t, termPrime_i);
+    termPrime_t = termPrime(termPrime1_i);
+    freeSynchSet(set);
+    return termPrime_t;
   }
   else if (strcmp(tok->tokStr, "ADDOP") == 0 ||
            strcmp(tok->tokStr, "RELOP") == 0 ||
@@ -1151,6 +1893,9 @@ void termPrime()
            strcmp(tok->tokStr, "END") == 0 ||
            strcmp(tok->tokStr, "ELSE") == 0)
   {
+    termPrime_t = termPrime_i;
+    freeSynchSet(set);
+    return termPrime_t;
   }
   else
   {
@@ -1159,13 +1904,18 @@ void termPrime()
     {
       tok = getNextTok();
     }
+    freeSynchSet(set);
+    return 0;
   }
-
-  freeSynchSet(set);
 }
 
-void term()
+int term()
 {
+  int factor_t;
+  int termPrime_i;
+  int termPrime_t;
+  int term_t;
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "ADDOP");
@@ -1184,15 +1934,33 @@ void term()
       strcmp(tok->tokStr, "LPAR") == 0 ||
       strcmp(tok->tokStr, "NOT") == 0)
   {
-    factor();
-    termPrime();
+    factor_t = factor();
+    termPrime_i = factor_t;
+    termPrime_t = termPrime(termPrime_i);
+    term_t = termPrime_t;
+    freeSynchSet(set);
+    return term_t;
   }
-
-  freeSynchSet(set);
+  else
+  {
+    synerr("ID, NUM, LPAR, NOT", tok->tokStr);
+    while (searchSynch(set, tok->tokStr) != 1)
+    {
+      tok = getNextTok();
+    }
+    freeSynchSet(set);
+    return 0;
+  }
 }
 
-void simple_exprPrime()
+int simple_exprPrime(int simple_exprPrime_i)
 {
+  int simple_exprPrime_t;
+  int addop_attr;
+  int term_t;
+  int simple_exprPrime1_i;
+  int simple_exprPrime1_t;
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "RELOP");
@@ -1207,9 +1975,14 @@ void simple_exprPrime()
 
   if (strcmp(tok->tokStr, "ADDOP") == 0)
   {
+    addop_attr = tok->attr.attrInt;
     match("ADDOP");
-    term();
-    simple_exprPrime();
+    term_t = term();
+    simple_exprPrime1_i = checkAddopAttr(addop_attr, simple_exprPrime_i, term_t);
+    simple_exprPrime1_t = simple_exprPrime(simple_exprPrime1_i);
+    simple_exprPrime_t = simple_exprPrime1_t;
+    freeSynchSet(set);
+    return simple_exprPrime_t;
   }
   else if (strcmp(tok->tokStr, "RELOP") == 0 ||
            strcmp(tok->tokStr, "THEN") == 0 ||
@@ -1221,6 +1994,9 @@ void simple_exprPrime()
            strcmp(tok->tokStr, "END") == 0 ||
            strcmp(tok->tokStr, "ELSE") == 0)
   {
+    simple_exprPrime_t = simple_exprPrime_i;
+    freeSynchSet(set);
+    return simple_exprPrime_t;
   }
   else
   {
@@ -1229,13 +2005,18 @@ void simple_exprPrime()
     {
       tok = getNextTok();
     }
+    freeSynchSet(set);
+    return 0;
   }
-
-  freeSynchSet(set);
 }
 
-void simple_expr()
+int simple_expr()
 {
+  int term_t;
+  int simple_exprPrime_i;
+  int simple_exprPrime_t;
+  int simple_expr_t;
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "RELOP");
@@ -1253,15 +2034,23 @@ void simple_expr()
       strcmp(tok->tokStr, "LPAR") == 0 ||
       strcmp(tok->tokStr, "NOT") == 0)
   {
-    term();
-    simple_exprPrime();
+    term_t = term();
+    simple_exprPrime_i = term_t;
+    simple_exprPrime_t = simple_exprPrime(simple_exprPrime_i);
+    simple_expr_t = simple_exprPrime_t;
+    freeSynchSet(set);
+    return simple_expr_t;
   }
   else if (strcmp(tok->tokStr, "PLUS") == 0 ||
            strcmp(tok->tokStr, "MINUS") == 0)
   {
     sign();
-    term();
-    simple_exprPrime();
+    term_t = term();
+    simple_exprPrime_i = checkTermT(term_t);
+    simple_exprPrime_t = simple_exprPrime(simple_exprPrime_i);
+    simple_expr_t = simple_exprPrime_t;
+    freeSynchSet(set);
+    return simple_expr_t;
   }
   else
   {
@@ -1270,13 +2059,17 @@ void simple_expr()
     {
       tok = getNextTok();
     }
+    freeSynchSet(set);
+    return 0;
   }
-
-  freeSynchSet(set);
 }
 
-void exprPrime()
+int exprPrime(int exprPrime_i)
 {
+  int exprPrime_t;
+  int relop_attr;
+  int simple_expr_t;
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "THEN");
@@ -1290,8 +2083,12 @@ void exprPrime()
 
   if (strcmp(tok->tokStr, "RELOP") == 0)
   {
+    relop_attr = tok->attr.attrInt;
     match("RELOP");
-    simple_expr();
+    simple_expr_t = simple_expr();
+    exprPrime_t = checkRelopAttr(simple_expr_t, exprPrime_i);
+    freeSynchSet(set);
+    return exprPrime_t;
   }
   else if (strcmp(tok->tokStr, "THEN") == 0 ||
            strcmp(tok->tokStr, "DO") == 0 ||
@@ -1302,6 +2099,9 @@ void exprPrime()
            strcmp(tok->tokStr, "END") == 0 ||
            strcmp(tok->tokStr, "ELSE") == 0)
   {
+    exprPrime_t = exprPrime_i;
+    freeSynchSet(set);
+    return exprPrime_t;
   }
   else
   {
@@ -1310,13 +2110,18 @@ void exprPrime()
     {
       tok = getNextTok();
     }
+    freeSynchSet(set);
+    return 0;
   }
-
-  freeSynchSet(set);
 }
 
-void expr()
+int expr()
 {
+  int simple_expr_t;
+  int exprPrime_i;
+  int exprPrime_t;
+  int expr_t;
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "THEN");
@@ -1335,8 +2140,12 @@ void expr()
       strcmp(tok->tokStr, "LPAR") == 0 ||
       strcmp(tok->tokStr, "NOT") == 0)
   {
-    simple_expr();
-    exprPrime();
+    simple_expr_t = simple_expr();
+    exprPrime_i = simple_expr_t;
+    exprPrime_t = exprPrime(exprPrime_i);
+    expr_t = exprPrime_t;
+    freeSynchSet(set);
+    return expr_t;
   }
   else
   {
@@ -1345,13 +2154,16 @@ void expr()
     {
       tok = getNextTok();
     }
+    freeSynchSet(set);
+    return 0;
   }
-
-  freeSynchSet(set);
 }
 
 void expr_listPrime()
 {
+  int expr_t;
+  char exprStr[10] = "";
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "RPAR");
@@ -1359,7 +2171,9 @@ void expr_listPrime()
   if (strcmp(tok->tokStr, "COMMA") == 0)
   {
     match("COMMA");
-    expr();
+    expr_t = expr();
+    sprintf(exprStr, "%d", expr_t);
+    strcat(paramList, exprStr);
     expr_listPrime();
   }
   else if (strcmp(tok->tokStr, "RPAR") == 0)
@@ -1379,6 +2193,9 @@ void expr_listPrime()
 
 void expr_list()
 {
+  int expr_t;
+  char exprStr[10] = "";
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "RPAR");
@@ -1390,7 +2207,9 @@ void expr_list()
       strcmp(tok->tokStr, "LPAR") == 0 ||
       strcmp(tok->tokStr, "NOT") == 0)
   {
-    expr();
+    expr_t = expr();
+    sprintf(exprStr, "%d", expr_t);
+    strcat(paramList, exprStr);
     expr_listPrime();
   }
   else
@@ -1407,6 +2226,7 @@ void expr_list()
 
 void proc_stmtPrime()
 {
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "SEMI");
@@ -1418,11 +2238,33 @@ void proc_stmtPrime()
     match("LPAR");
     expr_list();
     match("RPAR");
+
+    if (strcmp(profile, "999") == 0)
+    {
+      semerr("undeclared procedure parameters", tok->lex, tok->lineNum);
+    }
+    else if (strlen(paramList) > strlen(profile))
+    {
+      semerr("too many procedure parameters", tok->lex, tok->lineNum);
+    }
+    else if (strlen(paramList) < strlen(profile))
+    {
+      semerr("too few procedure parameters", tok->lex, tok->lineNum);
+    }
+    else if (strcmp(profile, paramList) != 0)
+    {
+      semerr("procedure parameters do not match", tok->lex, tok->lineNum);
+    }
   }
   else if (strcmp(tok->tokStr, "SEMI") == 0 ||
            strcmp(tok->tokStr, "END") == 0 ||
            strcmp(tok->tokStr, "ELSE") == 0)
   {
+    strcpy(paramList, "0");
+    if (strcmp(profile, paramList) != 0)
+    {
+      semerr("procedure parameters do not match", tok->lex, tok->lineNum);
+    }
   }
   else
   {
@@ -1438,6 +2280,8 @@ void proc_stmtPrime()
 
 void proc_stmt()
 {
+  char currentProfile[25] = "";
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "SEMI");
@@ -1447,7 +2291,11 @@ void proc_stmt()
   if (strcmp(tok->tokStr, "CALL") == 0)
   {
     match("CALL");
+    getProfile(tok->lex);
+    checkProc(tok->lex);
     match("ID");
+    paramList = (char *)malloc(sizeof(char) * 25);
+    strcpy(paramList, "");
     proc_stmtPrime();
   }
   else
@@ -1462,8 +2310,11 @@ void proc_stmt()
   freeSynchSet(set);
 }
 
-void varPrime()
+int varPrime(int varPrime_i)
 {
+  int varPrime_t;
+  int expr_t;
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "ASSIGN");
@@ -1471,11 +2322,17 @@ void varPrime()
   if (strcmp(tok->tokStr, "LBRACK") == 0)
   {
     match("LBRACK");
-    expr();
+    expr_t = expr();
     match("RBRACK");
+    varPrime_t = checkVarPrime(expr_t, varPrime_i);
+    freeSynchSet(set);
+    return varPrime_t;
   }
   else if (strcmp(tok->tokStr, "ASSIGN") == 0)
   {
+    varPrime_t = varPrime_i;
+    freeSynchSet(set);
+    return varPrime_t;
   }
   else
   {
@@ -1484,21 +2341,31 @@ void varPrime()
     {
       tok = getNextTok();
     }
+    freeSynchSet(set);
+    return 0;
   }
-
-  freeSynchSet(set);
 }
 
-void var()
+int var()
 {
+  int id_t;
+  int varPrime_i;
+  int varPrime_t;
+  int var_t;
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "ASSIGN");
 
   if (strcmp(tok->tokStr, "ID") == 0)
   {
+    id_t = getType(tok->lex);
     match("ID");
-    varPrime();
+    varPrime_i = id_t;
+    varPrime_t = varPrime(varPrime_i);
+    var_t = varPrime_t;
+    freeSynchSet(set);
+    return var_t;
   }
   else
   {
@@ -1507,9 +2374,9 @@ void var()
     {
       tok = getNextTok();
     }
+    freeSynchSet(set);
+    return 0;
   }
-
-  freeSynchSet(set);
 }
 
 void stmtPrime()
@@ -1542,6 +2409,9 @@ void stmtPrime()
 
 void stmt()
 {
+  int var_t;
+  int expr_t;
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "SEMI");
@@ -1550,9 +2420,10 @@ void stmt()
 
   if (strcmp(tok->tokStr, "ID") == 0)
   {
-    var();
+    var_t = var();
     match("ASSIGN");
-    expr();
+    expr_t = expr();
+    checkVarT(var_t, expr_t);
   }
   else if (strcmp(tok->tokStr, "CALL") == 0)
   {
@@ -1565,7 +2436,8 @@ void stmt()
   else if (strcmp(tok->tokStr, "IF") == 0)
   {
     match("IF");
-    expr();
+    expr_t = expr();
+    checkExprT(expr_t);
     match("THEN");
     stmt();
     stmtPrime();
@@ -1573,7 +2445,8 @@ void stmt()
   else if (strcmp(tok->tokStr, "WHILE") == 0)
   {
     match("WHILE");
-    expr();
+    expr_t = expr();
+    checkExprT(expr_t);
     match("DO");
     stmt();
   }
@@ -1730,6 +2603,11 @@ void cmpd_stmt()
 
 void param_listPrime()
 {
+  int type_t;
+  char currLex[100] = "";
+  int currType;
+  char typeStr[10] = "";
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "RPAR");
@@ -1737,9 +2615,24 @@ void param_listPrime()
   if (strcmp(tok->tokStr, "SEMI") == 0)
   {
     match("SEMI");
+    strcpy(currLex, tok->lex);
+    currType = tok->tokInt;
     match("ID");
     match("COLON");
-    type();
+    type_t = type();
+    if (currType != 99 && type_t != 99)
+    {
+      if (type_t <= 4 && type_t >= 1)
+      {
+        checkAddBlueNode(currLex, type_t + 4);
+        sprintf(typeStr, "%d", type_t);
+        strcat(profile, typeStr);
+      }
+      else
+      {
+        printf("error in param_listPrime");
+      }
+    }
     param_listPrime();
   }
   else if (strcmp(tok->tokStr, "RPAR") == 0)
@@ -1759,15 +2652,35 @@ void param_listPrime()
 
 void param_list()
 {
+  int type_t;
+  char currLex[100] = "";
+  int currType;
+  char typeStr[10] = "";
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "RPAR");
 
   if (strcmp(tok->tokStr, "ID") == 0)
   {
+    strcpy(currLex, tok->lex);
+    currType = tok->tokInt;
     match("ID");
     match("COLON");
-    type();
+    type_t = type();
+    if (currType != 99 && type_t != 99)
+    {
+      if (type_t <= 4 && type_t >= 1)
+      {
+        checkAddBlueNode(currLex, type_t + 4);
+        sprintf(typeStr, "%d", type_t);
+        strcat(profile, typeStr);
+      }
+      else
+      {
+        printf("error in param_list");
+      }
+    }
     param_listPrime();
   }
   else
@@ -1808,6 +2721,9 @@ void args()
 
 void subprog_headPrime()
 {
+  struct Profile *currentProfile = NULL;
+  currentProfile = (struct Profile *)malloc(sizeof(struct Profile));
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "PROC");
@@ -1816,10 +2732,13 @@ void subprog_headPrime()
 
   if (strcmp(tok->tokStr, "SEMI") == 0)
   {
+    strcpy(profile, "0");
     match("SEMI");
   }
   else if (strcmp(tok->tokStr, "LPAR") == 0)
   {
+    profile = (char *)malloc(sizeof(char) * 25);
+    strcpy(profile, "");
     args();
     match("SEMI");
   }
@@ -1837,6 +2756,10 @@ void subprog_headPrime()
 
 void subprog_head()
 {
+  char currLex[100] = "";
+  struct Profile *currentProfile = NULL;
+  currentProfile = (struct Profile *)malloc(sizeof(struct Profile));
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "PROC");
@@ -1846,8 +2769,35 @@ void subprog_head()
   if (strcmp(tok->tokStr, "PROC") == 0)
   {
     match("PROC");
+    if (tok->tokInt != 99)
+    {
+      strcpy(currLex, tok->lex);
+      checkAddGreenNode(tok->lex, 100);
+    }
+    offset = 0;
+    fprintf(outTable, "%s\n", tok->lex);
+
     match("ID");
     subprog_headPrime();
+
+    if (profileHead == NULL)
+    {
+      strcpy(currentProfile->lex, currLex);
+      strcpy(currentProfile->profStr, profile);
+      profileHead = currentProfile;
+    }
+    else
+    {
+      strcpy(currentProfile->lex, currLex);
+      strcpy(currentProfile->profStr, profile);
+      struct Profile *temp = profileHead;
+      while (temp->next != NULL)
+      {
+        temp = temp->next;
+      }
+      temp->next = currentProfile;
+      currentProfile->next = NULL;
+    }
   }
   else
   {
@@ -1871,11 +2821,12 @@ void subprog_decDPrime()
   {
     subprog_decs();
     cmpd_stmt();
+    pop();
   }
   else if (strcmp(tok->tokStr, "BEG") == 0)
   {
-    // subprog_decs();
     cmpd_stmt();
+    pop();
   }
   else
   {
@@ -1899,6 +2850,7 @@ void subprog_decPrime()
   {
     subprog_decs();
     cmpd_stmt();
+    pop();
   }
   else if (strcmp(tok->tokStr, "VAR") == 0)
   {
@@ -1908,6 +2860,7 @@ void subprog_decPrime()
   else if (strcmp(tok->tokStr, "BEG") == 0)
   {
     cmpd_stmt();
+    pop();
   }
   else
   {
@@ -1995,8 +2948,11 @@ void subprog_decs()
   freeSynchSet(set);
 }
 
-void std_type()
+int std_type()
 {
+  int std_type_t;
+  int std_type_s;
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "SEMI");
@@ -2004,11 +2960,19 @@ void std_type()
 
   if (strcmp(tok->tokStr, "INT") == 0)
   {
+    std_type_t = 1;
+    typeSize = 4;
     match("INT");
+    freeSynchSet(set);
+    return std_type_t;
   }
   else if (strcmp(tok->tokStr, "REAL") == 0)
   {
+    std_type_t = 2;
+    typeSize = 8;
     match("REAL");
+    freeSynchSet(set);
+    return std_type_t;
   }
   else
   {
@@ -2017,32 +2981,82 @@ void std_type()
     {
       tok = getNextTok();
     }
+    freeSynchSet(set);
+    return 0;
   }
-
-  freeSynchSet(set);
 }
 
-void type()
+int type()
 {
+  int std_type_t;
+  int type_t;
+  int num1;
+  int num1_t;
+  int num2;
+  int num2_t;
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "SEMI");
   addSynch(set, "RPAR");
 
-  if (strcmp(tok->tokStr, "INT") == 0 || strcmp(tok->tokStr, "REAL") == 0)
+  if (strcmp(tok->tokStr, "INT") == 0)
   {
-    std_type();
+    std_type_t = std_type();
+    type_t = std_type_t;
+    typeSize = 4;
+    freeSynchSet(set);
+    return type_t;
+  }
+  else if (strcmp(tok->tokStr, "REAL") == 0)
+  {
+    std_type_t = std_type();
+    type_t = std_type_t;
+    typeSize = 8;
+    freeSynchSet(set);
+    return type_t;
   }
   else if (strcmp(tok->tokStr, "ARR") == 0)
   {
     match("ARR");
     match("LBRACK");
+    num1 = atoi(tok->lex);
+    num1_t = tok->attr.attrInt;
     match("NUM");
     match("DOTDOT");
+    num2 = atoi(tok->lex);
+    num2_t = tok->attr.attrInt;
     match("NUM");
     match("RBRACK");
     match("OF");
-    std_type();
+    if (num2 >= num1)
+    {
+      if (num1_t == 1 && num2_t == 1)
+      {
+        std_type_t = std_type();
+        typeSize = ((num2 - num1) + 1) * typeSize;
+      }
+      else if (num1_t == 99 || num2_t == 99)
+      {
+        std_type_t = 99;
+        typeSize = 0;
+      }
+      else
+      {
+        std_type_t = 99;
+        typeSize = 0;
+        semerr("expected num type int1", tok->lex, tok->lineNum);
+      }
+    }
+    else
+    {
+      std_type_t = 99;
+      typeSize = 0;
+      semerr("expected num2 to be greater than or equal to num1", tok->lex, tok->lineNum);
+    }
+    type_t = checkStdTypeT(std_type_t);
+    freeSynchSet(set);
+    return type_t;
   }
   else
   {
@@ -2051,13 +3065,17 @@ void type()
     {
       tok = getNextTok();
     }
+    freeSynchSet(set);
+    return 0;
   }
-
-  freeSynchSet(set);
 }
 
 void decsPrime()
 {
+  int type_t;
+  char currentLex[100] = "";
+  int currentType;
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "PROC");
@@ -2066,9 +3084,17 @@ void decsPrime()
   if (strcmp(tok->tokStr, "VAR") == 0)
   {
     match("VAR");
+    strcpy(currentLex, tok->lex);
+    currentType = tok->tokInt;
     match("ID");
     match("COLON");
-    type();
+    type_t = type();
+    if (currentType != 99 && type_t != 99)
+    {
+      checkAddBlueNode(currentLex, type_t);
+      fprintf(outTable, "%s\t%d\n", currentLex, offset);
+      offset = offset + typeSize;
+    }
     match("SEMI");
     decsPrime();
   }
@@ -2089,6 +3115,10 @@ void decsPrime()
 
 void decs()
 {
+  int type_t;
+  char currentLex[100] = "";
+  int currentType;
+
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
   addSynch(set, "PROC");
@@ -2097,9 +3127,17 @@ void decs()
   if (strcmp(tok->tokStr, "VAR") == 0)
   {
     match("VAR");
+    strcpy(currentLex, tok->lex);
+    currentType = tok->tokInt;
     match("ID");
     match("COLON");
-    type();
+    type_t = type();
+    if (currentType != 99 && type_t != 99)
+    {
+      checkAddBlueNode(currentLex, type_t);
+      fprintf(outTable, "%s\t%d\n", currentLex, offset);
+      offset = offset + typeSize;
+    }
     match("SEMI");
     decsPrime();
   }
@@ -2124,6 +3162,10 @@ void id_listPrime()
   if (strcmp(tok->tokStr, "COMMA") == 0)
   {
     match("COMMA");
+    if (tok->tokInt != 99)
+    {
+      checkAddBlueNode(tok->lex, 101);
+    }
     match("ID");
     id_listPrime();
   }
@@ -2150,6 +3192,10 @@ void id_list()
 
   if (strcmp(tok->tokStr, "ID") == 0)
   {
+    if (tok->tokInt != 99)
+    {
+      checkAddBlueNode(tok->lex, 101);
+    }
     match("ID");
     id_listPrime();
   }
@@ -2165,7 +3211,7 @@ void id_list()
   freeSynchSet(set);
 }
 
-void programDPrime()
+void programDPrime() // This might have a problem
 {
   SynchSet *set = createSynchSet();
   addSynch(set, "EOF");
@@ -2230,6 +3276,11 @@ void program()
   if (strcmp(tok->tokStr, "PROG") == 0)
   {
     match("PROG");
+    if (tok->tokInt != 99)
+    {
+      checkAddGreenNode(tok->lex, 102);
+    }
+    fprintf(outTable, "%s\n", tok->lex);
     match("ID");
     match("LPAR");
     id_list();
@@ -2261,9 +3312,9 @@ int main()
   // FILE *file = fopen("SamplePascalNoErrors.txt", "r");
   // FILE *file = fopen("SamplePascalWithErrors.txt", "r");
   // FILE *file = fopen("Stub.txt", "r");
-  // FILE *file = fopen("ShenoiProg.txt", "r");
+  FILE *file = fopen("ShenoiProg.txt", "r");
   // FILE *file = fopen("Prog10SynErrs.txt", "r");
-  FILE *file = fopen("ProgBothErrs.txt", "r");
+  // FILE *file = fopen("ProgBothErrs.txt", "r");
   // FILE *file = fopen("ShenoiProgSynErrs.txt", "r");
   // FILE *file = fopen("ShenoiProgBothErrs.txt", "r");
 
@@ -2342,7 +3393,7 @@ int main()
   }
 
   printTok(lineNum, "EOF", "EOF", 58, "NIL", 44);
-  printList(symTable);
+  // printList(symTable);
   clear(&symTable);
   fclose(file);
   fclose(ResWordFile);
@@ -2350,11 +3401,13 @@ int main()
   fclose(listingFile);
 
   readToksIn(&tokList);
+  outTable = fopen("symbolTable.txt", "w+");
   parse();
 
   insertErrs();
   free(lexErrors);
   free(synErrors);
+  free(semErrors);
 
   return 0;
 }

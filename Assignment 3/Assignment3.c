@@ -46,3 +46,20 @@
 #define MULOP 56
 #define COLON 57
 #define EOF 58
+
+#define ERR 60
+#define LEXERR 65
+
+#define INT 1
+#define REAL 2
+#define AINT 3
+#define AREAL 4
+#define PPINT 5
+#define PPREAL 6
+#define PPAINT 7
+#define PPAREAL 8
+#define BOOL 9
+
+#define PROCNAME 100
+#define PGMPARM 101
+#define PGMNAME 102
